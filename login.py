@@ -8,7 +8,6 @@ import time
 from requests import Session
 from email.mime.text import MIMEText
 import smtplib
-import os
 
 def printd(n):
     print(n)
