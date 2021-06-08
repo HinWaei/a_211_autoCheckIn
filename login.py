@@ -8,8 +8,9 @@ import time
 from requests import Session
 from email.mime.text import MIMEText
 import smtplib
+import random
 
-def printd(n):
+def dbg(n):
     print(n)
     exit(2)
 
@@ -51,6 +52,7 @@ if __name__ == "__main__":
     stu=Session()
     stuinfo={}
     headers={'User-Agent':'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0'}
+    payload={}
 
     try:
         with open("./mails","r+") as mails:
@@ -67,24 +69,37 @@ if __name__ == "__main__":
 
             login=stu.post(url="https://stuhealth.jnu.edu.cn/api/user/login",json={'username':stuinfo[m]['username'],'password':stuinfo[m]['password']},headers=headers)
             print(f" {stuinfo[m]['username']}:{login.json()['meta']['msg']}")
+            
             if login.json()['meta']['msg']=='登录成功，今天已填写':
                 print(f"{stuinfo[m]['username']}:登陆成功，今天已经填写")
                 
                 sendmail("Hey!User{0} Here is **[{1}]\n{2}".format(stuinfo[m]['username'],time.asctime(),login.json()['meta']['msg']),mail_pot[0][stuinfo[m]['username']])
                 #log(login.json()['meta']['msg'],False)
 
+            with open("payload","r+") as f:
+                payload=json.load(f)
             if login.json()['meta']['msg']=='登录成功，今天未填写':
                 #log(login.json()['meta']['msg'],is_error=False)
-                with open("payload","r+") as f:
-                    payload=json.load(f)
-                    
+                        
                 payload[m]["mainTable"]["declareTime"] = "{0}-{1}-{2}".format(time.localtime().tm_year,time.localtime().tm_mon,time.localtime().tm_mday)
-                print(payload[m])
-                fill=stu.post(url="https://stuhealth.jnu.edu.cn/api/write/main",json=payload[m],headers=headers)
-                print(f"{stuinfo[m]['username']}:{fill.json()['meta']['msg']}")
-                sendmail("Good morning!{0} **[{1}]\n{2}".format(stuinfo[m]['username'],time.asctime(),fill.json()['meta']['msg']),mail_pot[0][stuinfo[m]['username']])
-                #log(fill.json()['meta']['msg'],False)
-                time.sleep(1.5)
+                
+                #location
+                if payload[m]["mainTable"]["other"]:
+                    location = str(payload[m]["mainTable"]["other"]).rsplit(",")
+                    random.seed(time.asctime())
+                    x = float(location[0])+((-1)**random.randint(a=0,b=99)*random.random())
+                    time.sleep(1)
+                    y = float(location[1])+((-1)**random.randint(a=0,b=99)*random.random())
+                    payload[m]["mainTable"]["other"]=f"{x},{y}"
+                    #print(payload[m]["mainTable"]["other"])
+        
+            #
+            print(payload[m])
+            fill=stu.post(url="https://stuhealth.jnu.edu.cn/api/write/main",json=payload[m],headers=headers)
+            print(f"{stuinfo[m]['username']}:{fill.json()['meta']['msg']}")
+            sendmail(f"Good morning!{stuinfo[m]['username']} **[{time.asctime()}]\n{fill.json()['meta']['msg']}",mail_pot[0][stuinfo[m]['username']])
+            #log(fill.json()['meta']['msg'],False)
+            time.sleep(random.random()*10)
 
         except Exception as e:
             #log(str(e),True)
